@@ -81,7 +81,7 @@ public class UDPSocketServer extends Thread {
                 packet.setAddress(address);
                 packet.setPort(port);
                 String received = new String(buf);
-                System.out.println("recived"+received);
+                System.out.println("recived "+received);
                 //*****************************************
                 // TODO:
                 // Add a line below to send the packet (a blocking call)
