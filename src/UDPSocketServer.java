@@ -1,9 +1,6 @@
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.*;
 import java.util.Arrays;
-import java.util.Date;
 
 public class UDPSocketServer extends Thread {
     byte[] recvBuf = new byte[256];
@@ -21,13 +18,11 @@ public class UDPSocketServer extends Thread {
         System.arraycopy(ErrorCode, 0, errResponsePacket, Opcode.length, ErrorCode.length);
         System.arraycopy(ErrorMsg, 0, errResponsePacket, Opcode.length + ErrorCode.length, ErrorMsg.length);
         packet = new DatagramPacket(errResponsePacket, errResponsePacket.length, address, port);
-        System.out.println(Arrays.toString(errResponsePacket));
         socket.send(packet);
     }
     public UDPSocketServer() throws SocketException, IOException {
         this("UDPSocketServer");
     }
-
     public UDPSocketServer(String name) throws IOException {
         super(name);
         InetAddress inetAddress = InetAddress.getLocalHost();
@@ -37,8 +32,6 @@ public class UDPSocketServer extends Thread {
 
     @Override
     public void run() {
-
-
         try {
             while (true) {
                 String mode = "";
@@ -81,10 +74,7 @@ public class UDPSocketServer extends Thread {
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 }
-                Boolean isRead = (recvBuf[1] == 1);
-                //ServerRequestHandler handler = new ServerRequestHandler(socket, packet, filename, isRead);
-                //Thread thread = new Thread(handler);
-                //thread.start();
+                new ServerReadRequestHandler(socket, packet, filename).start();
 
                 try {
                     socket.send(packet);
@@ -98,7 +88,6 @@ public class UDPSocketServer extends Thread {
             socket.close();
         }
     }
-
     public static void main(String[] args) throws IOException {
         new UDPSocketServer().start();
         System.out.println("Time Server Started");

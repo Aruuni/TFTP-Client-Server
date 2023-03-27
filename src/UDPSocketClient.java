@@ -16,16 +16,16 @@ public class UDPSocketClient {
         Opcode[1] = 1;
         byte[] fileName = filename.getBytes();
         byte[] Mode = "octett".getBytes();
-        byte[] request = new byte[Opcode.length + fileName.length + Mode.length + 2];
+        byte[] request = new byte[265];
         System.arraycopy(Opcode, 0, request, 0, Opcode.length);
         System.arraycopy(fileName, 0, request, Opcode.length, fileName.length);
         System.arraycopy(Mode, 0, request, Opcode.length + fileName.length + 1, Mode.length);
         System.out.println(Arrays.toString(request));
-        packet = new DatagramPacket(request, request.length, InetAddress.getLocalHost(), 9000);
+        packet = new DatagramPacket(request, 1024, InetAddress.getLocalHost(), 9000);
         System.out.println(request.length);
         packet.setData(request);
     }
-    public void sendWRQ() throws IOException {
+    public void sendWRQ(String filename) throws IOException {
         byte[] Opcode = new byte[2];
         Opcode[1] = 2;
         byte[] Filename = "text.txt".getBytes();
@@ -38,8 +38,18 @@ public class UDPSocketClient {
         System.out.println(request.length);
         packet.setData(request);
     }
-    public void sendAck(){
-
+    public void sendAck(int block) throws IOException {
+        byte[] Opcode = new byte[2];
+        Opcode[1] = 4;
+        byte[] blockNumber = new byte[2];
+        blockNumber[0] = (byte) (block<<8);
+        blockNumber[1] = (byte) block;
+        byte[] ack = new byte[Opcode.length + blockNumber.length];
+        System.arraycopy(Opcode, 0, ack, 0, Opcode.length);
+        System.arraycopy(blockNumber, 0, ack, Opcode.length, blockNumber.length);
+        System.out.println(ack.length);
+        packet.setData(ack);
+        socket.send(packet);
     }
     public void sendError(){
 
@@ -54,17 +64,16 @@ public class UDPSocketClient {
         System.out.println("waiting for server ...");
         socket.receive(packet);
     }
-
+    public byte[] getBuffer(){
+        return packet.getData();
+    }
 
     // the client will take the IP Address of the server (in dotted decimal format as an argument)
     // given that for this tutorial both the client and the server will run on the same machine, you can use the loopback address 127.0.0.1
     public static void main(String[] args) throws IOException {
-        byte[] buf = new byte[512];
+
         UDPSocketClient client = new UDPSocketClient();
-        if (args.length != 1) {
-            System.out.println("the hostname of the server is required");
-            return;
-        }
+
         System.out.println("Welcome to the TFTP client");
         System.out.println("Press 1 for write request");
         System.out.println("Press 2 for read request");
@@ -73,7 +82,6 @@ public class UDPSocketClient {
             next = next - 48;
             if (next == 1){
                 System.out.println("Write request");
-
                 client.sendRRQ("text.txt");
                 client.socket.send(client.packet);
                 try {
@@ -92,12 +100,12 @@ public class UDPSocketClient {
             }
             System.out.println();
         }
-        buf = client.packet.getData();
-        System.out.println(Arrays.toString(buf));
+        byte[] buf = client.getBuffer();
+
         if (buf[0] == 0 && buf[1] == 5){
-            System.out.println("Error Code: " + (buf[2]<<8 + buf[3]) + " Error Message: " + new String(buf, 4, client.packet.getLength() - 4));
+            System.out.println("Error Code: " + (buf[2]<<8 + buf[3]) + " Error Message: " + new String(buf, 4, client.packet.getLength() - 5));
         }
-        InetAddress address = InetAddress.getByName(args[0]);
+
 
         //packet = new DatagramPacket(buf, len);
         //packet.setAddress(address);
