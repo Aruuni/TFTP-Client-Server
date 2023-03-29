@@ -2,18 +2,22 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Arrays;
 
 public class ServerReadRequestHandler extends Thread {
 
     protected DatagramSocket socket;
-    protected DatagramPacket packet;
-    private int blockNumber = 0;
+    protected DatagramPacket packet = new DatagramPacket(new byte[516], 516);
+    protected DatagramPacket ackPacket = new DatagramPacket(new byte[4], 4);
+    private int blockNumber = 1;
     private String filename;
-    public ServerReadRequestHandler(DatagramSocket socket, DatagramPacket packet, String filename) {
-        this.socket = socket;
-        this.packet = packet;
+    public ServerReadRequestHandler(int PORT, DatagramPacket packet, String filename) throws SocketException, UnknownHostException {
+        this.packet.setPort(packet.getPort());
+        this.packet.setAddress(packet.getAddress());
         this.filename = filename;
+        this.socket = new DatagramSocket(PORT, InetAddress.getLocalHost());
     }
     public void sendError(int ErrCode, String ErrMsg, InetAddress address, int port) throws IOException {
         byte[] Opcode = new byte[2];
@@ -30,50 +34,45 @@ public class ServerReadRequestHandler extends Thread {
         socket.send(packet);
     }
     public void run() {
-
+        System.out.println("Processing read request ..." + filename);
         try {
-            File file = new File(filename);
-            byte[] fileData = new byte[(int) file.length()];
-            try (FileInputStream fileInputStream = new FileInputStream(file)) {
-                fileInputStream.read(fileData);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            byte[] fileData = Files.readAllBytes(Paths.get("./src/",filename));
             int packetSize = 512;
             int numPackets = (int) Math.ceil((double) fileData.length / packetSize);
-            byte[][] packets = new byte[numPackets][];
-            for (int i = 0; i < numPackets; i++) {
-                int startIndex = i * packetSize;
-                int endIndex = Math.max(startIndex + packetSize, fileData.length);
-                packets[i] = Arrays.copyOfRange(fileData, startIndex, endIndex);
+            if(fileData.length % 512 == 0){
+                numPackets++;
             }
             while(blockNumber <= numPackets){
-                byte[] data = new byte[516];
+                System.out.println("Block number: " + blockNumber);
+                int startIndex = (blockNumber-1) * 512;
+                int endIndex = Math.min(startIndex + 512, fileData.length);
+                byte[] data = new byte[endIndex - startIndex + 4];
                 data[0] = 0;
                 data[1] = 3;
-                data[2] = (byte) (blockNumber >> 8);
-                data[3] = (byte) (blockNumber);
-                System.arraycopy(packets[blockNumber], 0, data, 4, packets[blockNumber].length);
+                data[2] = (byte) ((blockNumber>>8)&0xff);
+                data[3] = (byte) ((blockNumber)&0xff);
+                System.arraycopy(Arrays.copyOfRange(fileData, startIndex, endIndex), 0, data, 4, endIndex - startIndex);
                 DatagramPacket dataPacket = new DatagramPacket(data, data.length, packet.getAddress(), packet.getPort());
+                //System.out.println(Arrays.toString(dataPacket.getData()));
                 socket.send(dataPacket);
                 try {
-                    System.out.println("Waiting for ack ...");
-                    socket.receive(packet);
+                    System.out.println("waiting for ACK");
+                    socket.receive(ackPacket);
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-                byte[] recvBuf = packet.getData();
-                if (recvBuf[0] != 0 || (recvBuf[1] != 3)){
-                    sendError(4, "Illegal TFTP operation", packet.getAddress(), packet.getPort());
+                byte[] rcvBuf = ackPacket.getData();
+                System.out.println(Arrays.toString(rcvBuf));
+
+                System.out.println("Received ACK for block number: " + ((rcvBuf[3]& 0xff)|((rcvBuf[2] & 0xff) << 8)));
+                if (((rcvBuf[3]&0xff)|((rcvBuf[2]&0xff) << 8)) == blockNumber){
+                    blockNumber++;
                 }
-                else {
-                    if ( (recvBuf[2]<<8 + recvBuf[3]) == blockNumber){
-                        blockNumber++;
-                    }
-                }
+
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
+        System.out.println("File sent successfully!");
     }
 }

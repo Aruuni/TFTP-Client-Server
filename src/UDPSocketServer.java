@@ -3,8 +3,7 @@ import java.net.*;
 import java.util.Arrays;
 
 public class UDPSocketServer extends Thread {
-    byte[] recvBuf = new byte[256];
-    DatagramPacket packet = new DatagramPacket(recvBuf, recvBuf.length);
+    protected DatagramPacket packet;
     protected DatagramSocket socket = null;
     public void sendError(int ErrCode, String ErrMsg, InetAddress address, int port) throws IOException {
         byte[] Opcode = new byte[2];
@@ -20,11 +19,8 @@ public class UDPSocketServer extends Thread {
         packet = new DatagramPacket(errResponsePacket, errResponsePacket.length, address, port);
         socket.send(packet);
     }
-    public UDPSocketServer() throws SocketException, IOException {
-        this("UDPSocketServer");
-    }
-    public UDPSocketServer(String name) throws IOException {
-        super(name);
+
+    public UDPSocketServer() throws IOException {
         InetAddress inetAddress = InetAddress.getLocalHost();
         System.out.println("Local IP address: " + inetAddress.getHostAddress());
         socket = new DatagramSocket(9000, inetAddress);
@@ -34,9 +30,10 @@ public class UDPSocketServer extends Thread {
     public void run() {
         try {
             while (true) {
-                String mode = "";
-                String filename = "";
-                DatagramPacket packet = new DatagramPacket(recvBuf, recvBuf.length);
+                byte[] recvBuf = new byte[256];
+                StringBuilder mode = new StringBuilder();
+                StringBuilder filename = new StringBuilder();
+                packet = new DatagramPacket(recvBuf, recvBuf.length);
                 try {
                     System.out.println("Waiting for client ...");
                     socket.receive(packet);
@@ -44,43 +41,29 @@ public class UDPSocketServer extends Thread {
                     e.printStackTrace();
                 }
                 recvBuf = packet.getData();
+                System.out.println("Packet received: " + Arrays.toString(recvBuf));
                 if ((recvBuf[0] != 0 && recvBuf[1] != 1) || (recvBuf[0] != 0 && recvBuf[1] != 2)){
                     System.out.println("Erroneous packet received ... ");
                     sendError(1, "Erroneous packet received", packet.getAddress(), packet.getPort());
                     continue;
                 }
-                System.out.println("Processing read request ... ");
                 int currentByte = 2;
                 while(recvBuf[currentByte] != 0){
-                    filename += (char) recvBuf[currentByte];
+                    filename.append((char) recvBuf[currentByte]);
                     currentByte++;
                 }
                 currentByte++;
                 while(recvBuf[currentByte] != 0){
-                    mode += (char) recvBuf[currentByte];
+                    mode.append((char) recvBuf[currentByte]);
                     currentByte++;
                 }
-                if (!mode.equals("octet")){
+                if (!mode.toString().equals("octet")){
                     System.out.println("Mode: " + mode + " not supported!" );
                     sendError(0, "Illegal TFTP operation", packet.getAddress(), packet.getPort());
                     continue;
                 }
-                try {
-                    System.out.println("Thread id: "+threadId());
-                    synchronized(this) {
-                        wait(10000);
-                    }
-
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-                new ServerReadRequestHandler(socket, packet, filename).start();
-
-                try {
-                    socket.send(packet);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+                //random port 9001 for testing
+                new ServerReadRequestHandler(9001, packet, filename.toString()).start();
             }
         } catch (Exception e) {
             e.printStackTrace();
