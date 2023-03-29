@@ -11,12 +11,11 @@ public class UDPSocketClient {
     private final int PORT = 4000;
     //change, make a random socket
     public UDPSocketClient() throws SocketException, UnknownHostException {
-        socket = new DatagramSocket(PORT, InetAddress.getLocalHost());
+        socket = new DatagramSocket(PORT);
     }
 
-
     public void readHandler(String filename) throws IOException {
-        this.sendRRQ(filename, 9000);
+        this.sendRRQ(filename, 9000, InetAddress.getByName("192.168.68.119"));
         int blockNumber = 0;
         try (FileOutputStream fos = new FileOutputStream(filename)) {
             while (true) {
@@ -43,7 +42,7 @@ public class UDPSocketClient {
         }
     }
 
-    public void sendRRQ(String filename, int PORT) throws IOException {
+    public void sendRRQ(String filename, int PORT, InetAddress addres) throws IOException {
         byte[] Opcode = new byte[2];
         Opcode[1] = 1;
         byte[] fileName = filename.getBytes();
@@ -52,7 +51,7 @@ public class UDPSocketClient {
         System.arraycopy(Opcode, 0, request, 0, Opcode.length);
         System.arraycopy(fileName, 0, request, Opcode.length, fileName.length);
         System.arraycopy(Mode, 0, request, Opcode.length + fileName.length + 1, Mode.length);
-        DatagramPacket rrqPacket = new DatagramPacket(request, 265, InetAddress.getLocalHost(), PORT);
+        DatagramPacket rrqPacket = new DatagramPacket(request, 265, addres, PORT);
         System.out.println(Arrays.toString(request));
         socket.send(rrqPacket);
     }
