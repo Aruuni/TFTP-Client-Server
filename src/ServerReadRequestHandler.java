@@ -18,6 +18,7 @@ public class ServerReadRequestHandler extends Thread {
         this.packet.setAddress(packet.getAddress());
         this.filename = filename;
         this.socket = new DatagramSocket(PORT, InetAddress.getLocalHost());
+        socket.setSoTimeout(1000);
     }
     public void sendError(int ErrCode, String ErrMsg, InetAddress address, int port) throws IOException {
         byte[] Opcode = new byte[2];
@@ -53,26 +54,21 @@ public class ServerReadRequestHandler extends Thread {
                 data[3] = (byte) ((blockNumber)&0xff);
                 System.arraycopy(Arrays.copyOfRange(fileData, startIndex, endIndex), 0, data, 4, endIndex - startIndex);
                 DatagramPacket dataPacket = new DatagramPacket(data, data.length, packet.getAddress(), packet.getPort());
-                //System.out.println(Arrays.toString(dataPacket.getData()));
                 socket.send(dataPacket);
                 try {
                     System.out.println("waiting for ACK");
                     socket.receive(ackPacket);
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    continue;
                 }
-                byte[] rcvBuf = ackPacket.getData();
-                System.out.println(Arrays.toString(rcvBuf));
-
-                System.out.println("Received ACK for block number: " + ((rcvBuf[3]& 0xff)|((rcvBuf[2] & 0xff) << 8)));
-                if (((rcvBuf[3]&0xff)|((rcvBuf[2]&0xff) << 8)) == blockNumber){
+                if (((ackPacket.getData()[3]&0xff)|((ackPacket.getData()[2]&0xff) << 8)) == blockNumber){
                     blockNumber++;
                 }
-
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
+        socket.close();
         System.out.println("File sent successfully!");
     }
 }

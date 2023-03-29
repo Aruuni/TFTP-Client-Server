@@ -63,7 +63,10 @@ public class UDPSocketServer extends Thread {
                     continue;
                 }
                 //random port 9001 for testing
-                new ServerReadRequestHandler(9001, packet, filename.toString()).start();
+                if (recvBuf[1] == 1)
+                    new ServerReadRequestHandler(9001, packet, filename.toString()).start();
+                else
+                    new ServerWriteRequestHandler(9001, packet, filename.toString()).start();
             }
         } catch (Exception e) {
             e.printStackTrace();
