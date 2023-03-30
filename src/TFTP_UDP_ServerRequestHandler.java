@@ -14,7 +14,7 @@ import java.util.Arrays;
  * @version 1.0
  *
  */
-public class ServerRequestHandler extends Thread {
+public class TFTP_UDP_ServerRequestHandler extends Thread {
     protected DatagramSocket socket;
     protected DatagramPacket packet = new DatagramPacket(new byte[516], 516);
     protected DatagramPacket ackPacket = new DatagramPacket(new byte[4], 4);
@@ -32,7 +32,7 @@ public class ServerRequestHandler extends Thread {
      * @throws SocketException
      * @throws UnknownHostException
      */
-    public ServerRequestHandler(int PORT, DatagramPacket packet, String filename, int mode) throws SocketException, UnknownHostException {
+    public TFTP_UDP_ServerRequestHandler(int PORT, DatagramPacket packet, String filename, int mode) throws SocketException, UnknownHostException {
         this.packet.setPort(packet.getPort());
         this.packet.setAddress(packet.getAddress());
         this.filename = filename;
@@ -84,13 +84,13 @@ public class ServerRequestHandler extends Thread {
     public void readRequest() {
         try {
             // Check if file exists and closes the effectively closes the thread if it doesn't
-            if(!new File("./ServerFiles/",filename).isFile()){
+            if(!new File(".",filename).isFile()){
                 System.out.println("File not found");
                 sendError(1, "File not found", packet.getAddress(), packet.getPort());
                 return;
             }
             //takes the file in a byte array. This byte array is then sent one block of 512 bytes at a time
-            byte[] fileData = Files.readAllBytes(Paths.get("./ServerFiles/",filename));
+            byte[] fileData = Files.readAllBytes(Paths.get(".",filename));
             int packetSize = 512;
             int numPackets = (int) Math.ceil((double) fileData.length / packetSize);
             //edge case where the file is a multiple of 512 bytes to handle the edge case in which an empty packet need ot be sent to indicate the end of transmission
@@ -143,7 +143,7 @@ public class ServerRequestHandler extends Thread {
             e.printStackTrace();
         }
         //I create a new file output stream to write the data to the file
-        try (FileOutputStream fos = new FileOutputStream("./ServerFiles/"+filename)) {
+        try (FileOutputStream fos = new FileOutputStream("."+filename)) {
             while (true) {
                 try {
                     //I wait for a data packet

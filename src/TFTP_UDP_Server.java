@@ -1,9 +1,8 @@
-import java.io.IOException;
+import java.io.*;
 import java.net.*;
-import java.util.Arrays;
 import java.util.Random;
 
-public class UDPSocketServer extends Thread {
+public class TFTP_UDP_Server extends Thread {
     protected DatagramPacket packet;
     protected DatagramSocket socket;
     /**
@@ -11,7 +10,7 @@ public class UDPSocketServer extends Thread {
      *
      * @throws IOException
      */
-    public UDPSocketServer() throws IOException {
+    public TFTP_UDP_Server() throws IOException {
         InetAddress inetAddress = InetAddress.getLocalHost();
         System.out.println("Local IP address: " + inetAddress.getHostAddress());
         socket = new DatagramSocket(69, inetAddress);
@@ -42,7 +41,7 @@ public class UDPSocketServer extends Thread {
                 }
                 Random random = new Random();
                 int randomNumber = random.nextInt((65533 - 1024) + 1) + 1024;
-                new ServerRequestHandler(randomNumber, packet, filename.toString(), recvBuf[1]).start();
+                new TFTP_UDP_ServerRequestHandler(randomNumber, packet, filename.toString(), recvBuf[1]).start();
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -52,7 +51,7 @@ public class UDPSocketServer extends Thread {
     }
     //main method that starts the server
     public static void main(String[] args) throws IOException {
-        new UDPSocketServer().start();
+        new TFTP_UDP_Server().start();
         System.out.println("Time Server Started");
     }
 }

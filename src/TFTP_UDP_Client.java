@@ -1,16 +1,9 @@
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.net.*;
-import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
-import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.Objects;
-import java.util.Random;
-import java.util.Scanner;
+import java.nio.file.*;
+import java.util.*;
 
-public class UDPSocketClient {
+public class TFTP_UDP_Client {
     protected DatagramSocket socket;
     protected DatagramPacket packet = new DatagramPacket(new byte[516], 516);
     protected DatagramPacket ackPacket = new DatagramPacket(new byte[4], 4);
@@ -19,7 +12,7 @@ public class UDPSocketClient {
      * Constructor for the client, only creates the socket on a random port from 1024 to 65533
      * @throws SocketException
      */
-    public UDPSocketClient() throws SocketException {
+    public TFTP_UDP_Client() throws SocketException {
         Random random = new Random();
         int randomNumber = random.nextInt((65533 - 1024) + 1) + 1024;
         socket = new DatagramSocket(randomNumber);
@@ -50,7 +43,7 @@ public class UDPSocketClient {
                     System.out.println("Error code: " + rcvBuf[3] + " Error message: " + new String(rcvBuf, 4, packet.getLength() - 5));
                     break;
                 }
-                FileOutputStream fos = new FileOutputStream(Paths.get("./ClientFiles/",filename).toFile());
+                FileOutputStream fos = new FileOutputStream(Paths.get(".",filename).toFile());
                 //ack the data packet and if it macthes the block number write it to the file
                 sendAck(((rcvBuf[3]&0xff)|((rcvBuf[2]&0xff) << 8)), packet);
                 if (((rcvBuf[3] & 0xff)|((rcvBuf[2]&0xff) << 8)) == blockNumber + 1) {
@@ -79,7 +72,7 @@ public class UDPSocketClient {
         System.out.println("Writing file: " + filename);
         try {
             //read the file into a byte array that I then read block my block, into a ClientFiles folder which makes it easier to see the files
-            byte[] fileData = Files.readAllBytes(Paths.get("./ClientFiles/",filename));
+            byte[] fileData = Files.readAllBytes(Paths.get(".",filename));
             //send the write request
             this.request((byte)2, filename, PORT, address);
             int blockNumber = 1;
@@ -184,13 +177,13 @@ public class UDPSocketClient {
             if (Objects.equals(next, "1")){
                 System.out.println("Enter the file name");
                 String filename = scanner.nextLine();
-                new UDPSocketClient().readHandler(filename, 69, InetAddress.getLocalHost());
+                new TFTP_UDP_Client().readHandler(filename, 69, InetAddress.getLocalHost());
                 System.exit(0);
             }
             if (Objects.equals(next, "2")){
                 System.out.println("Enter the file name");
                 String filename = scanner.nextLine();
-                new UDPSocketClient().writeHandler(filename, 69, InetAddress.getLocalHost());
+                new TFTP_UDP_Client().writeHandler(filename, 69, InetAddress.getLocalHost());
                 System.exit(0);
             }
             else{
