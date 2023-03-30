@@ -178,6 +178,7 @@ public class ServerRequestHandler extends Thread {
      */
     @Override
     public void run() {
+        //I check if the packet is a read or write request and call the appropriate method
         if (mode == 1) {
             readRequest();
         } else {
