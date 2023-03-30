@@ -1,3 +1,4 @@
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.*;
@@ -5,19 +6,23 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.Objects;
+import java.util.Random;
+import java.util.Scanner;
 
 public class UDPSocketClient {
     protected DatagramSocket socket;
     protected DatagramPacket packet = new DatagramPacket(new byte[516], 516);
     protected DatagramPacket ackPacket = new DatagramPacket(new byte[4], 4);
 
-    private final int PORT = 4000;
     /**
-     * Constructor for the client, only creates the socket
+     * Constructor for the client, only creates the socket on a random port from 1024 to 65533
      * @throws SocketException
      */
     public UDPSocketClient() throws SocketException {
-        socket = new DatagramSocket(PORT);
+        Random random = new Random();
+        int randomNumber = random.nextInt((65533 - 1024) + 1) + 1024;
+        socket = new DatagramSocket(randomNumber);
     }
     /**
      * Handles the read request
@@ -27,24 +32,25 @@ public class UDPSocketClient {
      * @throws IOException
      */
     public void readHandler(String filename, int PORT, InetAddress address) throws IOException {
+        System.out.println("Reading file: " + filename);
         this.request((byte)1, filename, PORT, address);
         int blockNumber = 0;
-        try (FileOutputStream fos = new FileOutputStream(Paths.get("./ClientFiles/",filename).toFile())) {
+        try {
             while (true) {
                 //waiting for packet
                 try {
                     socket.receive(packet);
                     socket.getSoTimeout();
                 } catch (IOException e) {
-                    throw new RuntimeException(e);
+                    continue;
                 }
                 byte[] rcvBuf = packet.getData();
-                System.out.println(Arrays.toString(rcvBuf));
                 //checking for file not found error mainly
                 if (rcvBuf[1] == 5) {
-                    System.out.println("Error code: " + rcvBuf[3] + " Error message: " + new String(rcvBuf, 4, packet.getLength() - 3));
+                    System.out.println("Error code: " + rcvBuf[3] + " Error message: " + new String(rcvBuf, 4, packet.getLength() - 5));
                     break;
                 }
+                FileOutputStream fos = new FileOutputStream(Paths.get("./ClientFiles/",filename).toFile());
                 //ack the data packet and if it macthes the block number write it to the file
                 sendAck(((rcvBuf[3]&0xff)|((rcvBuf[2]&0xff) << 8)), packet);
                 if (((rcvBuf[3] & 0xff)|((rcvBuf[2]&0xff) << 8)) == blockNumber + 1) {
@@ -57,7 +63,7 @@ public class UDPSocketClient {
                 }
             }
         } catch (IOException e) {
-            return;
+            e.printStackTrace();
         } finally {
             socket.close();
         }
@@ -70,6 +76,7 @@ public class UDPSocketClient {
      * @throws IOException
      */
     public void writeHandler(String filename, int PORT, InetAddress address) throws IOException {
+        System.out.println("Writing file: " + filename);
         try {
             //read the file into a byte array that I then read block my block, into a ClientFiles folder which makes it easier to see the files
             byte[] fileData = Files.readAllBytes(Paths.get("./ClientFiles/",filename));
@@ -162,8 +169,6 @@ public class UDPSocketClient {
         DatagramPacket ackPacket = new DatagramPacket(ack, 4, toAck.getAddress(), toAck.getPort());
         socket.send(ackPacket);
     }
-    // fix this
-
     /**
      * Handles the read request
      * @param args for the IP address
@@ -174,22 +179,23 @@ public class UDPSocketClient {
             System.out.println("Welcome to the TFTP client");
             System.out.println("Press 1 for read request");
             System.out.println("Press 2 for write request");
-            int next = System.in.read();
-            if (next == 49){
-                System.out.println("Read request");
-
-                new UDPSocketClient().readHandler("test545.jpg", 9000, InetAddress.getLocalHost());
-                continue;
+            Scanner scanner = new Scanner(System.in);
+            String next = scanner.nextLine();
+            if (Objects.equals(next, "1")){
+                System.out.println("Enter the file name");
+                String filename = scanner.nextLine();
+                new UDPSocketClient().readHandler(filename, 69, InetAddress.getLocalHost());
+                System.exit(0);
             }
-             if (next == 50){
-                System.out.println("Write request");
-                 new UDPSocketClient().writeHandler("tesfdfdt.txt", 9000, InetAddress.getLocalHost());
-                 continue;
+            if (Objects.equals(next, "2")){
+                System.out.println("Enter the file name");
+                String filename = scanner.nextLine();
+                new UDPSocketClient().writeHandler(filename, 69, InetAddress.getLocalHost());
+                System.exit(0);
             }
             else{
                 System.out.println("Invalid input");
             }
-            System.out.println("File sent successfully!");
         }
     }
 }

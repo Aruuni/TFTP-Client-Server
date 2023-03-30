@@ -115,7 +115,6 @@ public class ServerRequestHandler extends Thread {
                 socket.send(dataPacket);
                 //I wait for an ACK packet and check if the block number is correct. If it is, I increment the block number and continue. If it isn't, I resend the packet
                 try {
-                    System.out.println("waiting for ACK");
                     socket.receive(ackPacket);
                 } catch (IOException e) {
                     continue;

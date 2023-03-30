@@ -1,6 +1,7 @@
 import java.io.IOException;
 import java.net.*;
 import java.util.Arrays;
+import java.util.Random;
 
 public class UDPSocketServer extends Thread {
     protected DatagramPacket packet;
@@ -13,7 +14,7 @@ public class UDPSocketServer extends Thread {
     public UDPSocketServer() throws IOException {
         InetAddress inetAddress = InetAddress.getLocalHost();
         System.out.println("Local IP address: " + inetAddress.getHostAddress());
-        socket = new DatagramSocket(9000, inetAddress);
+        socket = new DatagramSocket(69, inetAddress);
     }
     /**
      * This method is responsible for receiving the initial packet from the client
@@ -33,14 +34,15 @@ public class UDPSocketServer extends Thread {
                     e.printStackTrace();
                 }
                 recvBuf = packet.getData();
-                //parrse the filename
+                //parse the filename
                 int currentByte = 2;
                 while(recvBuf[currentByte] != 0){
                     filename.append((char) recvBuf[currentByte]);
                     currentByte++;
                 }
-                //Open a new thread to handle the rest of the communication
-                new ServerRequestHandler(9001, packet, filename.toString(), recvBuf[1]).start();
+                Random random = new Random();
+                int randomNumber = random.nextInt((65533 - 1024) + 1) + 1024;
+                new ServerRequestHandler(randomNumber, packet, filename.toString(), recvBuf[1]).start();
             }
         } catch (Exception e) {
             e.printStackTrace();
