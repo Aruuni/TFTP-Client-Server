@@ -4,7 +4,7 @@ import java.util.Arrays;
 
 public class UDPSocketServer extends Thread {
     protected DatagramPacket packet;
-    protected DatagramSocket socket = null;
+    protected DatagramSocket socket;
     /**
      * Constructor for the UDPSocketServer class
      *
