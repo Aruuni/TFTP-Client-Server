@@ -4,12 +4,13 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.*;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
 import java.util.Arrays;
 
 public class UDPSocketClient {
     private DatagramSocket socket;
-    public DatagramPacket packet = new DatagramPacket(new byte[516], 516);
+    private DatagramPacket packet = new DatagramPacket(new byte[516], 516);
     protected DatagramPacket ackPacket = new DatagramPacket(new byte[4], 4);
 
     private final int PORT = 4000;
@@ -21,7 +22,7 @@ public class UDPSocketClient {
     public void readHandler(String filename, int PORT, InetAddress address) throws IOException {
         this.request((byte)1, filename, PORT, address);
         int blockNumber = 0;
-        try (FileOutputStream fos = new FileOutputStream(filename)) {
+        try (FileOutputStream fos = new FileOutputStream(Paths.get("./ClientFiles/",filename).toFile())) {
             while (true) {
                 try {
                     System.out.println("waiting for data");
@@ -31,9 +32,14 @@ public class UDPSocketClient {
                     throw new RuntimeException(e);
                 }
                 byte[] rcvBuf = packet.getData();
-                fos.write(rcvBuf, 4, packet.getLength() - 4);
+                System.out.println(Arrays.toString(rcvBuf));
+                if (rcvBuf[1] == 5) {
+                    System.out.println("Error code: " + rcvBuf[3] + " Error message: " + new String(rcvBuf, 4, packet.getLength() - 3));
+                    break;
+                }
                 sendAck(((rcvBuf[3]&0xff)|((rcvBuf[2]&0xff) << 8)), packet);
                 if (((rcvBuf[3] & 0xff)|((rcvBuf[2]&0xff) << 8)) == blockNumber + 1) {
+                    fos.write(rcvBuf, 4, packet.getLength() - 4);
                     blockNumber++;
                 }
                 if (packet.getLength() < 516) {
@@ -41,51 +47,59 @@ public class UDPSocketClient {
                 }
             }
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            return;
         }
         socket.close();
     }
     public void writeHandler(String filename, int PORT, InetAddress address) throws IOException {
-        this.request((byte)2, filename, PORT, address);
-        System.out.println("Processing write request ..." + filename);
-        int blockNumber = 0;
         try {
-            byte[] fileData = Files.readAllBytes(Paths.get("./src/",filename));
-            int packetSize = 512;
-            int numPackets = (int) Math.ceil((double) fileData.length / packetSize);
-            if (fileData.length % packetSize == 0 && fileData.length != 0) {
-                numPackets++;
-            }
-            while (blockNumber < numPackets) {
-                try {
-                    System.out.println("waiting for ACK" + blockNumber);
-                    socket.receive(ackPacket);
-                } catch (IOException e) {
-                    continue;
-                }
-                packet.setAddress(ackPacket.getAddress());
-                packet.setPort(ackPacket.getPort());
-                if (((ackPacket.getData()[3]&0xff)|((ackPacket.getData()[2]&0xff) << 8)) == blockNumber){
-                    blockNumber++;
-                }
-                System.out.println("Block number: " + blockNumber);
-                int startIndex = (blockNumber-1) * 512;
-                int endIndex = Math.min(startIndex + 512, fileData.length);
-                byte[] data = new byte[endIndex - startIndex + 4];
-                data[0] = 0;
-                data[1] = 3;
-                data[2] = (byte) ((blockNumber>>8)&0xff);
-                data[3] = (byte) ((blockNumber)&0xff);
-                System.arraycopy(Arrays.copyOfRange(fileData, startIndex, endIndex), 0, data, 4, endIndex - startIndex);
-                DatagramPacket dataPacket = new DatagramPacket(data, data.length, packet.getAddress(), packet.getPort());
-                socket.send(dataPacket);
+            byte[] fileData = Files.readAllBytes(Paths.get("./ClientFiles/",filename));
+            this.request((byte)2, filename, PORT, address);
+            System.out.println("Processing write request ..." + filename);
+            int blockNumber = 0;
+            try {
 
+                int packetSize = 512;
+                int numPackets = (int) Math.ceil((double) fileData.length / packetSize);
+                if (fileData.length % packetSize == 0 && fileData.length != 0) {
+                    numPackets++;
+                }
+                while (blockNumber < numPackets) {
+                    try {
+                        System.out.println("waiting for ACK" + blockNumber);
+                        socket.receive(ackPacket);
+                    } catch (IOException e) {
+                        continue;
+                    }
+                    packet.setAddress(ackPacket.getAddress());
+                    packet.setPort(ackPacket.getPort());
+                    if (((ackPacket.getData()[3]&0xff)|((ackPacket.getData()[2]&0xff) << 8)) == blockNumber){
+                        blockNumber++;
+                    }
+                    int startIndex = (blockNumber-1) * 512;
+                    int endIndex = Math.min(startIndex + 512, fileData.length);
+                    byte[] data = new byte[endIndex - startIndex + 4];
+                    data[0] = 0;
+                    data[1] = 3;
+                    data[2] = (byte) ((blockNumber>>8)&0xff);
+                    data[3] = (byte) ((blockNumber)&0xff);
+                    System.arraycopy(Arrays.copyOfRange(fileData, startIndex, endIndex), 0, data, 4, endIndex - startIndex);
+                    DatagramPacket dataPacket = new DatagramPacket(data, data.length, packet.getAddress(), packet.getPort());
+                    if (packet.getLength() < 516) {
+                        break;
+                    }
+                    socket.send(dataPacket);
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+                socket.close();
             }
-        } catch (IOException e) {
-            e.printStackTrace();
+            System.out.println("File sent successfully!");
         }
-        socket.close();
-        System.out.println("File sent successfully!");
+        catch  (NoSuchFileException e) {
+            System.out.println("File not found");
+        }
     }
 
     public void request(byte opcode,String filename, int PORT, InetAddress address) throws IOException {
@@ -111,28 +125,27 @@ public class UDPSocketClient {
         System.out.println("Client sending ack " + block + " decoded: " + ((ack[3]&0xff)|((ack[2]&0xff) << 8)));
         socket.send(ackPacket);
     }
+    // fix this
     public static void main(String[] args) throws IOException {
         while(true){
             System.out.println("Welcome to the TFTP client");
-            System.out.println("Press 1 for write request");
-            System.out.println("Press 2 for read request");
+            System.out.println("Press 1 for read request");
+            System.out.println("Press 2 for write request");
             int next = System.in.read();
             if (next == 49){
                 System.out.println("Read request");
-                UDPSocketClient client = new UDPSocketClient();
-                client.readHandler("test.jpg", 9000, InetAddress.getLocalHost());
+                new UDPSocketClient().readHandler("test.jpg", 9000, InetAddress.getLocalHost());
                 continue;
             }
              if (next == 50){
                 System.out.println("Write request");
-                 UDPSocketClient client = new UDPSocketClient();
-                 client.writeHandler("test.txt", 9000, InetAddress.getLocalHost());
-                continue;
+                 new UDPSocketClient().writeHandler("tesfdfdt.txt", 9000, InetAddress.getLocalHost());
+                 continue;
             }
             else{
                 System.out.println("Invalid input");
             }
-            System.out.println();
+            System.out.println("File sent successfully!");
         }
     }
 }
