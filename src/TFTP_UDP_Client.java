@@ -2,7 +2,11 @@ import java.io.*;
 import java.net.*;
 import java.nio.file.*;
 import java.util.*;
-
+/**
+ * A simple TFTP client that uses UDP sockets.
+ * @author 249951
+ * @version 1.0
+ */
 public class TFTP_UDP_Client {
     protected DatagramSocket socket;
     protected DatagramPacket packet = new DatagramPacket(new byte[516], 516);
@@ -28,7 +32,7 @@ public class TFTP_UDP_Client {
         System.out.println("Reading file: " + filename);
         this.request((byte)1, filename, PORT, address);
         int blockNumber = 0;
-        try {
+        try (FileOutputStream fos = new FileOutputStream(filename)){
             while (true) {
                 //waiting for packet
                 try {
@@ -43,7 +47,7 @@ public class TFTP_UDP_Client {
                     System.out.println("Error code: " + rcvBuf[3] + " Error message: " + new String(rcvBuf, 4, packet.getLength() - 5));
                     break;
                 }
-                FileOutputStream fos = new FileOutputStream(Paths.get(".",filename).toFile());
+                //FileOutputStream fos = new FileOutputStream(filename);
                 //ack the data packet and if it macthes the block number write it to the file
                 sendAck(((rcvBuf[3]&0xff)|((rcvBuf[2]&0xff) << 8)), packet);
                 if (((rcvBuf[3] & 0xff)|((rcvBuf[2]&0xff) << 8)) == blockNumber + 1) {
@@ -72,7 +76,7 @@ public class TFTP_UDP_Client {
         System.out.println("Writing file: " + filename);
         try {
             //read the file into a byte array that I then read block my block, into a ClientFiles folder which makes it easier to see the files
-            byte[] fileData = Files.readAllBytes(Paths.get(".",filename));
+            byte[] fileData = Files.readAllBytes(Path.of(filename));
             //send the write request
             this.request((byte)2, filename, PORT, address);
             int blockNumber = 1;
@@ -84,7 +88,7 @@ public class TFTP_UDP_Client {
                     numPackets++;
                 }
                 //send the first packet block by block, if the block number is not incremented then the same data is sent
-                while (blockNumber < numPackets) {
+                while (blockNumber <= numPackets) {
                     //wit for the ack packet
                     try {
                         socket.receive(ackPacket);
@@ -164,31 +168,19 @@ public class TFTP_UDP_Client {
     }
     /**
      * Handles the read request
-     * @param args for the IP address
+     * @param args the command line arguments
      * @throws IOException
      */
     public static void main(String[] args) throws IOException {
-        while(true){
-            System.out.println("Welcome to the TFTP client");
-            System.out.println("Press 1 for read request");
-            System.out.println("Press 2 for write request");
-            Scanner scanner = new Scanner(System.in);
-            String next = scanner.nextLine();
-            if (Objects.equals(next, "1")){
-                System.out.println("Enter the file name");
-                String filename = scanner.nextLine();
-                new TFTP_UDP_Client().readHandler(filename, 69, InetAddress.getLocalHost());
-                System.exit(0);
-            }
-            if (Objects.equals(next, "2")){
-                System.out.println("Enter the file name");
-                String filename = scanner.nextLine();
-                new TFTP_UDP_Client().writeHandler(filename, 69, InetAddress.getLocalHost());
-                System.exit(0);
-            }
-            else{
-                System.out.println("Invalid input");
-            }
+        if (args[1].equals("read")) {
+            new TFTP_UDP_Client().readHandler(args[2], 69, InetAddress.getByName(args[0]));
+        }
+        else if (args[1].equals("write")) {
+            new TFTP_UDP_Client().writeHandler(args[2], 69, InetAddress.getByName(args[0]));
+        }
+        else {
+            System.out.println("Usage: java TFTP_UDP_Client <host> <read/write> <filename>");
+            System.exit(1);
         }
     }
 }

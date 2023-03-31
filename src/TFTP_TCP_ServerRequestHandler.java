@@ -1,23 +1,30 @@
 import java.io.*;
 import java.net.*;
 
-//class TFTP_TCP_ServerRequest extends Thread {
+/**
+ * A simple TFTP server that uses TCP, extends thread
+ */
 class TFTP_TCP_ServerRequestHandler extends Thread {
     private final Socket clientSocket;
 
     public TFTP_TCP_ServerRequestHandler(Socket clientSocket) {
         this.clientSocket = clientSocket;
     }
+    /**
+     * Handles a client request
+     */
 
     public void run() {
         try {
+            //sets the size of the buffer to 512, similar to task1
+            byte[] buffer = new byte[512];
             // Create input and output streams for the client socket
-            BufferedInputStream in = new BufferedInputStream(clientSocket.getInputStream());
-            OutputStream out = clientSocket.getOutputStream();
-
+            InputStream inputStream = clientSocket.getInputStream();
+            OutputStream outputStream = clientSocket.getOutputStream();
             // Read the client's request
             byte[] request = new byte[1024];
-            int bytesRead = in.read(request);
+            int bytesRead = inputStream.read(request);
+            // If the client closes the connection, bytesRead will be -1
             if (bytesRead == -1) {
                 return;
             }
@@ -29,45 +36,39 @@ class TFTP_TCP_ServerRequestHandler extends Thread {
                 String filename = requestString.substring(4).trim();
                 File file = new File(filename);
                 if (!file.exists()) {
-                    out.write("ERROR: File not found".getBytes());
+                    outputStream.write("ERROR: File not found".getBytes());
                     return;
                 }
+                //writes into the socket output stream in 512 chunks the file input stream
                 FileInputStream fis = new FileInputStream(file);
-                byte[] buffer = new byte[512];
                 while (true) {
                     int count = fis.read(buffer);
                     if (count == -1) {
                         break;
                     }
-                    out.write(buffer, 0, count);
+                    outputStream.write(buffer, 0, count);
                 }
                 fis.close();
-            } else if (requestString.startsWith("WRITE")) {
+            }
+            //writes the file to the socket output stream in 512 chunks
+            else if (requestString.startsWith("WRITE")) {
                 // Handle a TFTP write request
                 String filename = requestString.substring(4).trim();
                 File file = new File(filename);
-                FileOutputStream fos = new FileOutputStream(file+".jpg"+".jpg");
-                byte[] buffer = new byte[512];
+                //writes into the file output stream in 512 chunks the socket input stream
+                FileOutputStream fos = new FileOutputStream(file);
                 while (true) {
-                    int count = in.read(buffer);
+                    int count = inputStream.read(buffer);
                     if (count == -1) {
                         break;
                     }
                     fos.write(buffer, 0, count);
                 }
                 fos.close();
-                out.write("File saved successfully".getBytes());
-            } else {
-                out.write("ERROR: Invalid request".getBytes());
             }
+            clientSocket.close();
         } catch (Exception e) {
             System.err.println("Error handling client request: " + e.getMessage());
-        } finally {
-            try {
-                clientSocket.close();
-            } catch (IOException e) {
-                // Ignore
-            }
         }
     }
 }

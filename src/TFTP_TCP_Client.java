@@ -7,7 +7,7 @@ import java.net.*;
 public class TFTP_TCP_Client{
     public static void main(String[] args) throws Exception {
         if (args.length < 3 || args.length > 4) {
-            System.out.println("Incorrect format: java TFTPClient <server> <read|write> <filename>");
+            System.out.println("Usage: java TFTPClient <server> <read|write> <filename>");
             System.exit(1);
         }
         String filename = args[2];
@@ -23,7 +23,7 @@ public class TFTP_TCP_Client{
         // handles a TFTP read request
         if (args[1].equalsIgnoreCase("READ")) {
             // Opens a file for writing
-            File file = new File(filename+".jpg"+".jpg");
+            File file = new File(filename);
             FileOutputStream fos = new FileOutputStream(file);
             byte[] buffer = new byte[512];
             // Read the file from the socket
@@ -36,11 +36,7 @@ public class TFTP_TCP_Client{
         }
         else if (args[1].equalsIgnoreCase("WRITE")) {
             // Handle a TFTP write request
-            String newFilename = filename;
-            if (args.length == 4) {
-                newFilename = args[3];
-            }
-            File file = new File(newFilename);
+            File file = new File(filename);
             FileInputStream fis = new FileInputStream(file);
             byte[] buffer = new byte[512];
             int bytesRead;
@@ -56,5 +52,7 @@ public class TFTP_TCP_Client{
         }
         // Close the socket
         socket.close();
+        System.out.println("file transfer complete");
+        System.exit(0);
     }
 }

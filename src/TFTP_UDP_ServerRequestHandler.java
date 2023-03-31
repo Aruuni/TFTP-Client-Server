@@ -143,7 +143,7 @@ public class TFTP_UDP_ServerRequestHandler extends Thread {
             e.printStackTrace();
         }
         //I create a new file output stream to write the data to the file
-        try (FileOutputStream fos = new FileOutputStream("."+filename)) {
+        try (FileOutputStream fos = new FileOutputStream(filename)) {
             while (true) {
                 try {
                     //I wait for a data packet
@@ -154,7 +154,6 @@ public class TFTP_UDP_ServerRequestHandler extends Thread {
                 }
                 //I check if the block number is correct. If it is, I write the data to the file and send an ACK packet. If it isn't, I send an ACK packet with the correct block number
                 byte[] rcvBuf = packet.getData();
-                System.out.println(Arrays.toString(rcvBuf));
                 if (((rcvBuf[3] & 0xff)|((rcvBuf[2]&0xff) << 8)) == blockNumber+1) {
                     fos.write(rcvBuf, 4, packet.getLength() - 4);
                     blockNumber++;
